@@ -1,6 +1,7 @@
 const pdfParse = require("pdf-parse")
 const { generateInterviewReport, generateResumePdf } = require("../services/ai.service")
 const interviewReportModel = require("../models/interviewReport.model")
+const userModel = require("../models/user.model");
 
 
 
@@ -9,15 +10,18 @@ const interviewReportModel = require("../models/interviewReport.model")
  * @description Controller to generate interview report based on user self description, resume and job description.
  */
 async function generateInterViewReportController(req, res) {
+    const currentUser = await userModel.findById(req.user.id);
+    let resumeText = "";
 
-    let resumeText = ""
     if (req.file && req.file.buffer) {
         const resumeContent = await (new pdfParse.PDFParse(Uint8Array.from(req.file.buffer))).getText()
         resumeText = resumeContent.text
+    } else {
+        resumeText = currentUser.defaultResume || "";
     }
 
     const { selfDescription, jobDescription } = req.body
-
+    const finalSelfDescription = selfDescription || currentUser.defaultSelfDescription || "";
     const interViewReportByAi = await generateInterviewReport({
         resume: resumeText,
         selfDescription,
@@ -27,7 +31,7 @@ async function generateInterViewReportController(req, res) {
     const interviewReport = await interviewReportModel.create({
         user: req.user.id,
         resume: resumeText,
-        selfDescription,
+        selfDescription: finalSelfDescription,
         jobDescription,
         ...interViewReportByAi
     })

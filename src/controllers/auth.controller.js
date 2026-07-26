@@ -148,6 +148,43 @@ async function getMeController(req, res) {
  * @description update user profile default preferences
  * @access private
  */
+// async function updateProfileController(req, res) {
+//     const { defaultSelfDescription } = req.body;
+//     let updateData = {};
+
+//     if (defaultSelfDescription !== undefined) {
+//         updateData.defaultSelfDescription = defaultSelfDescription;
+//     }
+
+//     if (req.file) {
+//         // If a new resume is uploaded, we parse it and save the text
+//         const pdfParse = require("pdf-parse");
+//         try {
+//             const data = await (new pdfParse.PDFParse(req.file.buffer)).getText();
+//             updateData.defaultResume = data;
+//         } catch (err) {
+//             console.error("Error parsing resume for profile update:", err);
+//             return res.status(400).json({ message: "Failed to parse uploaded PDF resume" });
+//         }
+//     }
+
+//     const updatedUser = await userModel.findByIdAndUpdate(
+//         req.user.id,
+//         { $set: updateData },
+//         { new: true }
+//     );
+
+//     res.status(200).json({
+//         message: "Profile updated successfully",
+//         user: {
+//             id: updatedUser._id,
+//             username: updatedUser.username,
+//             email: updatedUser.email,
+//             defaultResume: updatedUser.defaultResume || "",
+//             defaultSelfDescription: updatedUser.defaultSelfDescription || ""
+//         }
+//     });
+// }
 async function updateProfileController(req, res) {
     const { defaultSelfDescription } = req.body;
     let updateData = {};
@@ -156,12 +193,12 @@ async function updateProfileController(req, res) {
         updateData.defaultSelfDescription = defaultSelfDescription;
     }
 
-    if (req.file) {
-        // If a new resume is uploaded, we parse it and save the text
+    if (req.file && req.file.buffer) {
+        // 🚨 UPGRADE: Use Uint8Array.from() for reliable binary memory conversion
         const pdfParse = require("pdf-parse");
         try {
-            const data = await (new pdfParse.PDFParse(req.file.buffer)).getText();
-            updateData.defaultResume = data;
+            const parsed = await (new pdfParse.PDFParse(Uint8Array.from(req.file.buffer))).getText();
+            updateData.defaultResume = parsed.text;
         } catch (err) {
             console.error("Error parsing resume for profile update:", err);
             return res.status(400).json({ message: "Failed to parse uploaded PDF resume" });
