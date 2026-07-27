@@ -44,14 +44,14 @@ async function registerUserController(req, res) {
 
     res.cookie("token", token, {
         httpOnly: true, 
-        secure: true,           // Required for cloud HTTPS connections
-        sameSite: "none",       // Required for cross-domain Vercel <-> Render communication!
+        secure: process.env.NODE_ENV === "production" || true, // Ensure secure flag in cloud deployments
+        sameSite: process.env.NODE_ENV === "production" ? "none" : "none", // Allow cross-site Vercel <-> Render cookies
         maxAge: 24 * 60 * 60 * 1000 // 24 hours
     });
 
-
     res.status(201).json({
         message: "User registered successfully",
+        token, // 👈 HYBRID AUTH: Send token to frontend
         user: {
             id: user._id,
             username: user.username,
@@ -93,9 +93,16 @@ async function loginUserController(req, res) {
         { expiresIn: "1d" }
     )
 
-    res.cookie("token", token)
+    res.cookie("token", token, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === "production" || true,
+        sameSite: "none",
+        maxAge: 24 * 60 * 60 * 1000
+    });
+    
     res.status(200).json({
         message: "User loggedIn successfully.",
+        token, // 👈 HYBRID AUTH: Send token to frontend
         user: {
             id: user._id,
             username: user.username,
@@ -111,13 +118,13 @@ async function loginUserController(req, res) {
  * @access public
  */
 async function logoutUserController(req, res) {
-    const token = req.cookies.token
+    const token = req.cookies?.token || req.headers?.authorization?.split(" ")[1];
 
     if (token) {
         await tokenBlacklistModel.create({ token })
     }
 
-    res.clearCookie("token")
+    res.clearCookie("token", { secure: true, sameSite: "none" })
 
     res.status(200).json({
         message: "User logged out successfully"
